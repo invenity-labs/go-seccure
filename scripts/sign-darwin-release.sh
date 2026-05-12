@@ -136,8 +136,7 @@ for arch in amd64 arm64; do
     --apple-id "$APPLE_ID" \
     --password "$APPLE_APP_PASSWORD" \
     --team-id "$APPLE_TEAM_ID" \
-    --wait \
-    --output-format plain
+    --wait
 done
 
 # --- Regenerate the checksums + darwin SBOMs ------------------------------
@@ -171,6 +170,35 @@ gh release upload "$VERSION" --repo "$REPO" --clobber \
   "$final/go-seccure_${VERSION_NOV}_darwin_amd64.tar.gz.sbom.json" \
   "$final/go-seccure_${VERSION_NOV}_darwin_arm64.tar.gz.sbom.json" \
   "$final/checksums.txt"
+
+# --- Verify each re-uploaded asset is reachable on the public CDN ---------
+# `gh release upload --clobber` does delete-then-upload, and GitHub
+# occasionally leaves the new asset stuck in a 404-on-public-URL state
+# even though the API reports state="uploaded" and `gh release download`
+# works. Catch that here so a broken release doesn't surface as a failed
+# `brew install` later. If we hit a 404, delete + re-upload the asset
+# fresh (without --clobber) which forces a new ID and bypasses the
+# corrupt entry.
+echo "=> verifying re-uploaded assets are publicly reachable"
+for asset in \
+    "go-seccure_${VERSION_NOV}_darwin_amd64.tar.gz" \
+    "go-seccure_${VERSION_NOV}_darwin_arm64.tar.gz" \
+    "go-seccure_${VERSION_NOV}_darwin_amd64.tar.gz.sbom.json" \
+    "go-seccure_${VERSION_NOV}_darwin_arm64.tar.gz.sbom.json" \
+    "checksums.txt"; do
+  url="https://github.com/invenity-labs/go-seccure/releases/download/${VERSION}/${asset}"
+  code=$(curl -sIL -o /dev/null -w '%{http_code}' "$url")
+  if [[ "$code" == "200" ]]; then
+    echo "   ✓ $asset ($code)"
+    continue
+  fi
+  echo "   ✗ $asset returned $code; recovering via delete + fresh upload"
+  gh release delete-asset "$VERSION" "$asset" --repo "$REPO" --yes
+  gh release upload "$VERSION" --repo "$REPO" "$final/$asset"
+  code=$(curl -sIL -o /dev/null -w '%{http_code}' "$url")
+  [[ "$code" == "200" ]] || { echo "   still broken after recovery: $code"; exit 1; }
+  echo "   ✓ $asset recovered ($code)"
+done
 
 # --- Patch the Homebrew formula -------------------------------------------
 # The brew formula goreleaser pushed during the CI release references the
