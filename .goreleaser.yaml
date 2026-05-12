@@ -10,10 +10,11 @@ version: 2
 
 project_name: go-seccure
 
-before:
-  hooks:
-    - go mod tidy
-    - go mod download
+# No `before:` hooks. The module has zero third-party deps, so `go mod
+# tidy` / `go mod download` do nothing useful — and any file they touch
+# (even a no-op rewrite of go.sum) marks the tree as VCS-dirty at compile
+# time, which makes Go's BuildInfo stamp every binary with a `+dirty`
+# version suffix that security scanners flag as a build-hygiene issue.
 
 builds:
   # One build entry per CLI binary. The matrix below produces 5 binaries each
@@ -129,10 +130,19 @@ sboms:
     # Also emit an SBOM for the source tarball goreleaser produces. This
     # captures the dependency graph at build time — important for
     # vulnerability scanning of the library (not just the CLI binaries).
+    #
+    # --source-version overrides syft's default "UNKNOWN" when scanning
+    # source archives (go.mod has no version field by spec). Binary SBOMs
+    # don't need this — they read the version from Go's BuildInfo.
     artifacts: source
     documents: ['${artifact}.sbom.json']
     cmd: syft
-    args: ['$artifact', '--output', 'spdx-json=$document']
+    args:
+      - '$artifact'
+      - '--source-version'
+      - '{{ .Version }}'
+      - '--output'
+      - 'spdx-json=$document'
 
 source:
   # Emit a source tarball alongside the binary archives so consumers can

@@ -1,7 +1,10 @@
 # Binaries (built outputs only — leading slash anchors to the repo root so
 # we don't accidentally ignore cmd/seccure-key/ etc.)
 /bin/
-/dist/      # goreleaser output
+# /dist/ is goreleaser's output directory. NOTE: .gitignore does NOT support
+# inline comments — every # must be at the start of a line, otherwise the
+# trailing text becomes part of the pattern and the rule matches nothing.
+/dist/
 /seccure-key
 /seccure-encrypt
 /seccure-decrypt
