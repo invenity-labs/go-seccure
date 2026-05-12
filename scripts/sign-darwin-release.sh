@@ -172,6 +172,45 @@ gh release upload "$VERSION" --repo "$REPO" --clobber \
   "$final/go-seccure_${VERSION_NOV}_darwin_arm64.tar.gz.sbom.json" \
   "$final/checksums.txt"
 
+# --- Patch the Homebrew formula -------------------------------------------
+# The brew formula goreleaser pushed during the CI release references the
+# UNSIGNED archive SHA-256s. Now that we've re-uploaded the signed darwin
+# archives (different SHA-256), those entries are stale and `brew install`
+# will fail with a checksum mismatch. Clone the tap, rewrite the darwin
+# sha256 lines, commit + push.
+echo "=> patching invenity-labs/homebrew-tap formula with new darwin sha256s"
+
+amd64_sha=$(shasum -a 256 "$final/go-seccure_${VERSION_NOV}_darwin_amd64.tar.gz" | awk '{print $1}')
+arm64_sha=$(shasum -a 256 "$final/go-seccure_${VERSION_NOV}_darwin_arm64.tar.gz" | awk '{print $1}')
+
+tap="$WORK/tap"
+git clone --depth 1 https://github.com/invenity-labs/homebrew-tap.git "$tap"
+formula="$tap/go-seccure.rb"
+[[ -f "$formula" ]] || { echo "error: $formula not found in homebrew-tap" >&2; exit 1; }
+
+# Rewrite both darwin sha256 entries. The formula's structure is stable
+# enough that a per-arch awk pass is reliable; if goreleaser changes the
+# template significantly, this break will be loud.
+awk -v amd64="$amd64_sha" -v arm64="$arm64_sha" '
+  /url ".*darwin_amd64\.tar\.gz"/ { print; in_amd64=1; in_arm64=0; next }
+  /url ".*darwin_arm64\.tar\.gz"/ { print; in_arm64=1; in_amd64=0; next }
+  in_amd64 && /sha256 "/ { sub(/sha256 "[^"]*"/, "sha256 \"" amd64 "\""); in_amd64=0; print; next }
+  in_arm64 && /sha256 "/ { sub(/sha256 "[^"]*"/, "sha256 \"" arm64 "\""); in_arm64=0; print; next }
+  { print }
+' "$formula" > "$formula.new"
+mv "$formula.new" "$formula"
+
+# Sanity-check the new SHAs landed in the formula.
+grep -q "$amd64_sha" "$formula" || { echo "error: amd64 sha not patched"; exit 1; }
+grep -q "$arm64_sha" "$formula" || { echo "error: arm64 sha not patched"; exit 1; }
+
+( cd "$tap"
+  git -c user.email='bot@invenity-labs.invalid' -c user.name='goreleaser-bot' \
+    commit -am "go-seccure $VERSION: update darwin SHA-256 after signing"
+  git push origin main
+)
+
 echo
-echo "✓ done. $VERSION darwin binaries are signed + notarized + uploaded."
+echo "✓ done. $VERSION darwin binaries are signed + notarized + uploaded,"
+echo "  and the Homebrew formula now references the signed archive SHA-256s."
 echo "  Apple Gatekeeper will accept these on first run (online notary check)."
