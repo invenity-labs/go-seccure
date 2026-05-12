@@ -8,9 +8,17 @@
 
 cd "${SRC}/go-seccure"
 
-# Each target gets its own binary. The seed corpora are pulled from
-# Go's f.Add() entries automatically by the compile_native_go_fuzzer
-# wrapper.
+# `compile_native_go_fuzzer` generates a shim file that imports
+# github.com/AdamKorcz/go-118-fuzz-build/testing — the standard
+# adapter from Go's native fuzzing API to libFuzzer. The library's
+# canonical go.mod doesn't include that dependency (we keep it
+# zero-deps for the production library), so add it here inside the
+# OSS-Fuzz build container. This `go get` only modifies the
+# container's transient go.mod, not the upstream repo's.
+go get github.com/AdamKorcz/go-118-fuzz-build/testing
+
+# Each target gets its own libFuzzer binary. Seed corpora are pulled
+# from each f.Add() entry automatically by the wrapper.
 for target in \
     FuzzDecodeCompactNeverPanics \
     FuzzEncodeDecodeCompactRoundTrip \
