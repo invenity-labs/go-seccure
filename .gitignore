@@ -50,6 +50,8 @@ reference/**/.git/
 .env
 .env.*
 *.env
+# Exception: .env.example is the documented template; safe to commit.
+!.env.example
 secrets/
 *.pem
 *.key

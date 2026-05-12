@@ -34,6 +34,37 @@ seccure-key   seccure-encrypt    seccure-sign     seccure-dh
 
 See `go doc github.com/invenity-labs/go-seccure` for the full API.
 
+## Install
+
+### As a Go library
+
+```sh
+go get github.com/invenity-labs/go-seccure
+```
+
+### CLI tools
+
+**Homebrew** (macOS and Linux):
+
+```sh
+brew tap invenity-labs/tap
+brew install go-seccure
+```
+
+This installs all eight `seccure-*` binaries.
+
+**Pre-built binaries** for Linux (amd64/arm64), macOS (amd64/arm64), and
+Windows (amd64) are attached to every
+[GitHub Release](https://github.com/invenity-labs/go-seccure/releases),
+along with SHA-256 checksums and SPDX SBOMs. Each archive contains all
+eight CLI binaries.
+
+**From source**:
+
+```sh
+go install github.com/invenity-labs/go-seccure/cmd/...@latest
+```
+
 ## Non-goals
 
 - **No constant-time / side-channel resistance.** `py-seccure` itself warns against use where

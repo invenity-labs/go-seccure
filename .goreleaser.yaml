@@ -157,6 +157,36 @@ source:
   # auto-generated archive (which can re-hash if the repo is re-tarred).
   enabled: true
 
+brews:
+  # Generates a Homebrew formula and pushes it to invenity-labs/homebrew-tap
+  # on each release. macOS users install with:
+  #
+  #     brew tap invenity-labs/tap
+  #     brew install go-seccure
+  #
+  # Installs all eight seccure-* binaries. Requires HOMEBREW_TAP_TOKEN secret
+  # (a Personal Access Token with `contents:write` scope on the
+  # invenity-labs/homebrew-tap repo). The default GITHUB_TOKEN can't push
+  # cross-repo.
+  - name: go-seccure
+    repository:
+      owner: invenity-labs
+      name: homebrew-tap
+      token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'
+    homepage: 'https://github.com/invenity-labs/go-seccure'
+    description: 'Pure-Go port of SECCURE — byte-compatible with the C reference and py-seccure across all 15 curves.'
+    license: 'LGPL-3.0-or-later'
+    commit_author:
+      name: 'goreleaser-bot'
+      email: 'bot@invenity-labs.invalid'
+    install: |
+      bin.install Dir["seccure-*"]
+    test: |
+      # Smoke test: derive a pubkey from a known passphrase on p256 and
+      # compare against the byte-equal py-seccure / C-reference output.
+      assert_equal "!,jPO$#,mkJl2(^tiQ]q6h[x~xA${!tGw8acQP_:",
+        shell_output("#{bin}/seccure-key -c p256 -p Test1234").strip
+
 release:
   # The release notes default to the git log since the previous tag. For
   # the first release that just lists every commit on main — fine.
