@@ -43,10 +43,15 @@ jobs:
         # cross-impl canary. The canary takes ~25s and is the gate that
         # catches upstream byte-format drift; we don't want a cached
         # PASS to mask a real regression.
-        run: go test -count=1 ./...
+        #
+        # -race enables Go's data-race detector. The library is mostly
+        # single-goroutine, but the benchmark suite spins multiple
+        # goroutines and any future parallel paths in callers will be
+        # exercised here.
+        run: go test -count=1 -race ./...
 
   lint:
-    name: lint (staticcheck + gosec)
+    name: lint (staticcheck + gosec + govulncheck)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -64,3 +69,13 @@ jobs:
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
           gosec -quiet ./...
+
+      - name: govulncheck
+        # Official Go vulnerability scanner. Cross-references the standard
+        # library version + (any) third-party deps against the Go
+        # vulnerability database. Fast for us because the module has zero
+        # third-party deps, but worth running to catch stdlib vulns that
+        # affect crypto packages we use.
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...

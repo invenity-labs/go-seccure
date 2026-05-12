@@ -14,8 +14,9 @@ on:
     tags: ['v*.*.*']
 
 permissions:
-  contents: write   # required for goreleaser to create the GitHub Release
-  id-token: write   # for keyless signing if we add cosign later
+  contents: write       # required for goreleaser to create the GitHub Release
+  id-token: write       # OIDC token used by attest-build-provenance
+  attestations: write   # write the build-provenance attestations
 
 jobs:
   goreleaser:
@@ -48,3 +49,19 @@ jobs:
           # scope on that repo. The default GITHUB_TOKEN can't push
           # cross-repo, hence the dedicated secret.
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Generate build-provenance attestations
+        # SLSA-level-3 provenance: each release archive gets a
+        # cryptographically signed attestation that ties the artefact bytes
+        # to this specific workflow run + commit. Anyone can verify with:
+        #
+        #     gh attestation verify <file> --owner invenity-labs
+        #
+        # The signature lives in GitHub's Sigstore-backed transparency log;
+        # there are no long-lived keys to manage.
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/checksums.txt
