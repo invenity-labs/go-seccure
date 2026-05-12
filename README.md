@@ -6,10 +6,6 @@ A pure-Go port of [SECCURE](http://point-at-infinity.org/seccure/) (B. Poetterin
 curve produces the same compact public key, the same ciphertext, and the same signature byte
 stream as both reference implementations.
 
-> **Status:** v0.1.0. Two earlier porting attempts failed because passphrases produced
-> different public keys in Go than in Python. The root cause is documented in the
-> [Footguns](#footguns) section below.
-
 - **Module:** `github.com/invenity-labs/go-seccure`
 - **License:** [LGPL-3.0](LICENSE) (matches py-seccure)
 - **Owner:** Invenity Labs LLC
@@ -46,41 +42,66 @@ See `go doc github.com/invenity-labs/go-seccure` for the full API.
   `bp160`–`bp512`).
 - **No wrappers around the C tool.** This is a clean reimplementation.
 
-## Footguns
+## Wire-format notes
 
-SECCURE diverges from "textbook ECC" in several small but load-bearing ways. Each item below
-broke a prior porting attempt. If you change the crypto code, re-read these first and
-cross-check against `reference/c/` and `reference/py/`.
+SECCURE diverges from "textbook ECC" in several small but load-bearing ways.
+Each of these is something a reviewer or anyone porting SECCURE to another
+language needs to know — the canonical source is the C reference; this is
+a Go-friendly summary, cross-referenced against `reference/c/` and
+`reference/py/`.
 
-1. **Passphrase → private scalar is not `SHA-256(pw) mod n`.** SHA-256 produces a 32-byte AES-256
-   key for an all-zero-IV AES-256-CTR keystream; the keystream's first `order_len_bin` bytes are
-   read as a big-endian unsigned integer `a`, and the scalar is `d = (a mod (n-1)) + 1`. Skipping
-   the AES-CTR step, reducing `mod n` instead of `mod (n-1)+1`, or truncating to
-   `⌈log2(n)/8⌉` bytes all produce a different — and silently wrong — public key.
-2. **The compact string encoding is base-90.** Not base-85, base-64, or base-94. SECCURE
-   picks every printable ASCII char in `0x21..0x7E` *except* `"`, `'`, `\`, and `` ` ``,
-   leaving 90 digits. The alphabet is non-contiguous so `c - 0x21` is wrong — use a lookup
-   table on both sides. Encode the binary serialization as a big-endian unsigned integer,
-   take repeated `mod 90`, reverse, then left-pad with `!` (digit zero) to the fixed
-   per-curve length. The byte-for-byte alphabet table lives in `encoding.go` and matches
-   `reference/c/serialize.c::compact_digits` and
-   `reference/py/__init__.py::COMPACT_DIGITS` exactly.
-3. **Point compression uses an x-coordinate plus a "y is odd" top sign bit, not SEC1
-   `0x02`/`0x03`.** The high bit of byte 0 of the binary serialization carries `y & 1`.
-4. **Signatures serialize as a single MPI, not `(r, s)`.** `sig_int = r * n + (s - 1)`, written
-   big-endian as exactly `2 * order_len_bin` bytes. Always left-pad the compact form to
-   `sig_len_compact` — py-seccure once shipped a bug that didn't and produced signatures the C
-   tool would reject.
-5. **ECDSA `k` is deterministic**, derived from the same AES-256-CTR-as-CPRNG construction as the
-   passphrase, seeded from the private scalar and the message hash. Signatures are reproducible;
-   that property is also the easiest cross-implementation parity check.
-6. **ECIES message layout is `R || ciphertext || HMAC`.** Key material is
-   `SHA-512(z_x_bytes)`; first 32 bytes are the AES-256 key, next 32 bytes are the HMAC-SHA-256
-   key. AES-256-CTR with an all-zero 16-byte counter starting at 0. HMAC is computed over the
-   ciphertext and then truncated to `maclen` bytes.
-7. **The library API takes `[]byte`, never `string`, for the passphrase.** A Python 3 `str`
-   would silently UTF-8-encode in a way that drifts from the C tool's raw `read(2)` byte stream;
-   py-seccure explicitly raises `ValueError` on `str` input. Don't reintroduce the bug in Go.
+1. **Passphrase → private scalar is not `SHA-256(pw) mod n`.** SHA-256(pw)
+   produces a 32-byte AES-256 key for an all-zero-IV AES-256-CTR keystream;
+   the keystream's first `order_len_bin` bytes are read as a big-endian
+   unsigned integer `a`, and the scalar is `d = (a mod (n-1)) + 1`.
+   Skipping the AES-CTR step, reducing `mod n` instead of `mod (n-1) + 1`,
+   or truncating to `⌈log2(n)/8⌉` bytes all produce a different — and
+   silently wrong — public key.
+
+2. **The compact string encoding is base-90.** Not base-85, base-64, or
+   base-94. The alphabet is every printable ASCII char in `0x21..0x7E`
+   *except* `"`, `'`, `\`, and `` ` `` — 90 digits in total. The alphabet
+   is non-contiguous so `c - 0x21` is wrong; both encoder and decoder need
+   a lookup table. Encode the binary serialization as a big-endian unsigned
+   integer, take repeated `mod 90`, reverse, then left-pad with `!`
+   (digit zero) to the fixed per-curve length. The alphabet table in
+   `encoding.go` matches `reference/c/serialize.c::compact_digits` and
+   `reference/py/__init__.py::COMPACT_DIGITS` byte-for-byte.
+
+3. **Point compression encodes `x` if `y` is even, `x + m` if `y` is
+   odd.** Then write the result big-endian as exactly `pk_len_bin` bytes.
+   This is equivalent to "x with the y-parity bit OR-ed into the top of
+   byte 0" only when `bit_len(m) < 8 * pk_len_bin`; for curves where the
+   prime fills its bytes exactly (notably `secp521r1`) it isn't. Decoding
+   reverses by comparing the recovered integer against `m`.
+
+4. **Signatures serialize as a single MPI**, not `(r, s)`. The packing is
+   `sig_int = s * n + r`, written big-endian as exactly `2 * order_len_bin`
+   bytes. On decode: `s = sig_int / n`, `r = sig_int mod n`; reject if
+   either falls outside `[1, n-1]`. Always left-pad the compact form to
+   `sig_len_compact` characters.
+
+5. **ECDSA `k` is deterministic**. It's derived via the same AES-256-CTR-
+   as-CPRNG construction as the passphrase scalar, but seeded from
+   `HMAC-SHA-256(key = d_padded, msg = SHA-512(message))` where `d_padded`
+   is the private scalar serialized as `order_len_bin` big-endian bytes.
+   Signatures are reproducible byte-for-byte — that property is also the
+   easiest cross-implementation parity check.
+
+6. **ECIES message layout is `R_compressed || ciphertext || HMAC`.** Key
+   material is `SHA-512(Z.x_bytes || R.x_bytes || R.y_bytes)` where `Z`
+   is the shared secret point and `R` is the ephemeral public key; each
+   coordinate is serialized as exactly `elem_len_bin` big-endian bytes.
+   The first 32 bytes of the digest are the AES-256-CTR key, the next 32
+   are the HMAC-SHA-256 key. AES-256-CTR uses an all-zero 16-byte counter
+   starting at 0. HMAC is computed over the ciphertext (post-encryption)
+   and then truncated to `maclen` bytes.
+
+7. **The library API takes `[]byte`, never `string`, for the passphrase.**
+   A Python 3 `str` would silently UTF-8-encode in a way that drifts from
+   the C tool's raw `read(2)` byte stream; py-seccure explicitly raises
+   `ValueError` on `str` input. The Go API enforces the same discipline
+   by typing the parameter as `[]byte`.
 
 ## Repository layout
 
@@ -88,7 +109,7 @@ cross-check against `reference/c/` and `reference/py/`.
 go-seccure/
 ├── seccure.go          # public API
 ├── curves.go           # curve parameter table (15 curves)
-├── encoding.go         # base-94 codec
+├── encoding.go         # base-90 codec
 ├── ec.go               # affine point ops, scalar mul, sqrt
 ├── compress.go         # point compression / decompression
 ├── kdf.go              # SHA-256 → AES-256-CTR CPRNG → hash_to_exponent
@@ -151,8 +172,8 @@ immediately.
 Measured on Apple M2 (`bench/compare.sh 2`). Go wins on small curves, ties
 around p256, loses on p521 — py-seccure uses `gmpy2` (GMP-backed
 multi-precision arithmetic), which outperforms Go's `math/big` once the
-field elements get large. All numbers are well below the 100ms-per-op
-threshold the brief calls out in §7.4.
+field elements get large. All numbers are well within the latency budget
+of a typical encryption pipeline.
 
 ```
 op                     curve       go (µs)      py (µs)      py/go
@@ -174,12 +195,12 @@ Decrypt                p256         1127.6        945.7        0.8x
 Decrypt                p521         4108.2       3068.5        0.7x
 ```
 
-If p521 throughput matters for a future workload, the easiest wins are
+If p521 throughput ever becomes a bottleneck, the two unlanded wins are
 (a) switching the EC arithmetic from affine to Jacobian coordinates (one
 modular inverse per scalar mult instead of one per add) and (b) using a
-sliding-window or wNAF scalar-mult algorithm. Today neither is implemented
-because the canary parity comes first — the affine code mirrors py-seccure
-line-for-line which makes byte-equality bisection trivial.
+sliding-window or wNAF scalar-mult algorithm. Neither is implemented today
+— the affine code intentionally mirrors py-seccure's so byte-level parity
+bisection stays simple.
 
 Run the benchmark yourself: `bench/compare.sh [seconds-per-op]`.
 

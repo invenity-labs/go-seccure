@@ -131,18 +131,25 @@ sboms:
     # captures the dependency graph at build time — important for
     # vulnerability scanning of the library (not just the CLI binaries).
     #
-    # --source-version overrides syft's default "UNKNOWN" when scanning
-    # source archives (go.mod has no version field by spec). Binary SBOMs
-    # don't need this — they read the version from Go's BuildInfo.
+    # syft 1.42 doesn't expose a --source-version flag for source-directory
+    # scans (only --source-name and --source-supplier), so the generated
+    # SBOM lists our own module as versionInfo: "UNKNOWN" by default. The
+    # wrapper script post-processes with jq to set the correct version.
+    # Binary SBOMs don't need this — they read the version from Go's
+    # compile-time BuildInfo.
     artifacts: source
     documents: ['${artifact}.sbom.json']
-    cmd: syft
+    # Inline pipeline because goreleaser's source-SBOM cataloger runs from
+    # the dist/ directory and does NOT substitute $artifact/$document as
+    # positional args (only as env vars), so a script wrapper using $1/$2
+    # would receive empty strings. Workaround: use the env vars directly
+    # and template {{ .Version }} into the jq filter at config-parse time.
+    # Depends only on `syft` and `jq` being on $PATH (release workflow
+    # ensures both).
+    cmd: bash
     args:
-      - '$artifact'
-      - '--source-version'
-      - '{{ .Version }}'
-      - '--output'
-      - 'spdx-json=$document'
+      - '-c'
+      - 'set -e; syft "$artifact" --output spdx-json="$document"; jq ".packages |= map(if .name == \"github.com/invenity-labs/go-seccure\" then .versionInfo = \"{{ .Version }}\" else . end)" "$document" > "$document.tmp"; mv "$document.tmp" "$document"'
 
 source:
   # Emit a source tarball alongside the binary archives so consumers can
