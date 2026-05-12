@@ -1,5 +1,10 @@
 # go-seccure
 
+[![CI](https://github.com/invenity-labs/go-seccure/actions/workflows/ci.yml/badge.svg)](https://github.com/invenity-labs/go-seccure/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/invenity-labs/go-seccure)](https://github.com/invenity-labs/go-seccure/releases/latest)
+[![Go Reference](https://pkg.go.dev/badge/github.com/invenity-labs/go-seccure.svg)](https://pkg.go.dev/github.com/invenity-labs/go-seccure)
+[![License: LGPL v3](https://img.shields.io/badge/license-LGPL--3.0--or--later-blue.svg)](LICENSE)
+
 A pure-Go port of [SECCURE](http://point-at-infinity.org/seccure/) (B. Poettering, v0.5) that is
 **bit-for-bit wire-compatible** with the C reference implementation and with
 [`bwesterb/py-seccure`](https://github.com/bwesterb/py-seccure). The same passphrase on the same
