@@ -1,0 +1,40 @@
+go-seccure
+Copyright (c) 2026 Invenity Labs LLC
+
+This product is a clean-room pure-Go reimplementation of SECCURE that aims to be
+bit-for-bit wire-compatible with the C reference and the Python port.
+
+It is licensed under the GNU Lesser General Public License v3.0 (LGPL-3.0).
+See the LICENSE file for the full text.
+
+------------------------------------------------------------------------
+Upstream credits
+------------------------------------------------------------------------
+
+SECCURE (C reference implementation, v0.5)
+  Copyright (c) 2009  B. Poettering
+  http://point-at-infinity.org/seccure/
+  Licensed under GPL-2.0-or-later. (Not LGPL — go-seccure does not link
+  against this source. It is included under reference/c/ for offline diffing
+  only, and is not part of the build.)
+
+py-seccure (Python pure-Python port)
+  Copyright (c) Bas Westerbaan and contributors
+  https://github.com/bwesterb/py-seccure
+  Licensed under LGPL-3.0-or-later.
+
+------------------------------------------------------------------------
+Licensing rationale
+------------------------------------------------------------------------
+
+go-seccure is a clean-room reimplementation: we read the references but do
+not copy code from them. The Go library is therefore independently
+copyrightable, and Invenity Labs licenses it under LGPL-3.0 to match the
+byte-level parity target (py-seccure) and to permit dynamic linking from
+proprietary downstream consumers.
+
+The vendored reference sources under reference/c/ and reference/py/ retain
+their upstream licenses (GPL-2.0-or-later and LGPL-3.0-or-later respectively),
+unmodified. See each subdirectory's LICENSE.upstream for the canonical text.
+They are present for offline cross-checking against the authoritative wire
+format; they are NOT compiled or imported by any code in this repository.

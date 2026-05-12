@@ -1,0 +1,79 @@
+# Binaries (built outputs only — leading slash anchors to the repo root so
+# we don't accidentally ignore cmd/seccure-key/ etc.)
+/bin/
+/dist/      # goreleaser output
+/seccure-key
+/seccure-encrypt
+/seccure-decrypt
+/seccure-sign
+/seccure-verify
+/seccure-dh
+/seccure-signcrypt
+/seccure-veridec
+
+# Go build/test artifacts
+*.test
+*.out
+*.prof
+coverage.txt
+coverage.html
+
+# Local Python venv for the test-vector generator
+.venv/
+__pycache__/
+*.pyc
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Per-developer agent configs (kept local; not for a public repo)
+.claude/
+
+# Internal docs (kept local; not for the public repo)
+docs/
+
+# Vendored upstream sources are tracked via reference/, but build/temp files
+# and nested git checkouts are not.
+reference/**/*.o
+reference/**/build/
+reference/**/.git/
+
+# Secrets / credentials / per-developer config — this repo will be public.
+# Anything matching these patterns MUST NEVER be committed.
+.env
+.env.*
+*.env
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.csr
+id_rsa
+id_ed25519
+*.token
+auth.json
+
+# Local scratch / personal notes
+TODO.local.md
+NOTES.local.md
+scratch/
+*.local.md
+*.scratch
+*~
+
+# IDE / agent dirs (catch-alls in addition to specific entries above)
+.cursor/
+.aider*
+.continue/
+.copilot/
+.devcontainer/local/
+
+# Misc OS files
+Thumbs.db
+desktop.ini

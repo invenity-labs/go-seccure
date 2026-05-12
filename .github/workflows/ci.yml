@@ -1,0 +1,66 @@
+# Run tests on every push and pull request against main.
+#
+# Matrix: 3 OSes × 1 Go version. We could fan out to multiple Go versions
+# later (e.g. 1.25 + 1.26) if back-compat matters; for now the module
+# declares go 1.26.3 so only the latest needs to pass.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.3'
+          check-latest: true
+          cache: true
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test
+        # -count=1 disables the test cache so CI always re-runs the
+        # cross-impl canary. The canary takes ~25s and is the gate that
+        # catches upstream byte-format drift; we don't want a cached
+        # PASS to mask a real regression.
+        run: go test -count=1 ./...
+
+  lint:
+    name: lint (staticcheck + gosec)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.3'
+          cache: true
+
+      - name: staticcheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          staticcheck ./...
+
+      - name: gosec
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          gosec -quiet ./...
