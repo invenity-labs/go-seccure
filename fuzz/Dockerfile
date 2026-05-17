@@ -1,5 +1,7 @@
-# OSS-Fuzz build container for go-seccure. Lives here for review/onboarding;
-# the active copy is in google/oss-fuzz's projects/go-seccure/ directory.
+# SPDX-License-Identifier: LGPL-3.0-or-later
+#
+# Build container for go-seccure's continuous-fuzzing harness.
+# Compatible with OSS-Fuzz and ClusterFuzzLite.
 
 FROM gcr.io/oss-fuzz-base/base-builder-go
 

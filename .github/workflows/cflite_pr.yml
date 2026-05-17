@@ -1,0 +1,41 @@
+# Per-PR ClusterFuzzLite fuzz run. For each pull request, builds the
+# six fuzz targets and runs them for ten minutes focused on code
+# affected by the diff. Any crash, panic, or OOM blocks the PR with
+# a comment containing the minimised reproducer.
+
+name: cflite pr
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  PR:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Build Fuzzers
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+        with:
+          language: go
+          sanitizer: address
+          build-integration-path: fuzz
+      - name: Run Fuzzers
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 600
+          mode: 'code-change'
+          sanitizer: address
+          output-sarif: true

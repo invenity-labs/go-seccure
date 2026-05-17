@@ -1,10 +1,9 @@
 #!/bin/bash -eu
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# OSS-Fuzz build script. Compiles each of go-seccure's native Go fuzz
-# targets (defined in fuzz_test.go) into a libFuzzer-compatible binary
-# using compile_native_go_fuzzer, then OSS-Fuzz harnesses run them
-# continuously on Google's infrastructure.
+# Continuous-fuzzing build script. Compiles each of go-seccure's
+# native Go fuzz targets (defined in fuzz_test.go) into a
+# libFuzzer-compatible binary via compile_native_go_fuzzer.
 
 cd "${SRC}/go-seccure"
 
