@@ -1,0 +1,37 @@
+# Verify that the ClusterFuzzLite build container compiles all six
+# fuzz targets cleanly on every push to main and on every PR. This is
+# the lightweight check — no actual fuzzing happens here, just a
+# build smoke test so build-file regressions get caught at PR time
+# rather than at scheduled-fuzz time.
+
+name: cflite build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+permissions:
+  contents: read
+
+jobs:
+  BuildFuzzers:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address]
+    steps:
+      - name: Build Fuzzers (${{ matrix.sanitizer }})
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@v1
+        with:
+          language: go
+          sanitizer: ${{ matrix.sanitizer }}
+          bad-build-check: false
