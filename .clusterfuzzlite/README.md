@@ -1,17 +1,15 @@
 # Continuous fuzzing
 
 Build scaffolding for running go-seccure's six native Go fuzz
-targets (defined in [`fuzz_test.go`](../fuzz_test.go)) under a
-libFuzzer harness. The triplet here (`Dockerfile`, `build.sh`,
-`project.yaml`) follows the schema shared by
-[OSS-Fuzz](https://google.github.io/oss-fuzz/) and
-[ClusterFuzzLite](https://google.github.io/clusterfuzzlite/).
+targets (defined in [`fuzz_test.go`](../fuzz_test.go)) under
+[ClusterFuzzLite](https://google.github.io/clusterfuzzlite/) in
+GitHub Actions. Workflows live in [`.github/workflows/cflite_*.yml`](../.github/workflows/).
 
 ## Files
 
 | File           | Role |
 |----------------|------|
-| `Dockerfile`   | Build environment. Clones the latest `main` from this repo at runtime. |
+| `Dockerfile`   | Build environment — copies the working tree into a `base-builder-go` image. |
 | `build.sh`     | Compiles each `Fuzz*` target into a libFuzzer binary via `compile_native_go_fuzzer`. |
 | `project.yaml` | Project metadata (language, contacts, sanitizers, engines). |
 

@@ -12,8 +12,8 @@ cd "${SRC}/go-seccure"
 # adapter from Go's native fuzzing API to libFuzzer. The library's
 # canonical go.mod doesn't include that dependency (we keep it
 # zero-deps for the production library), so add it here inside the
-# OSS-Fuzz build container. This `go get` only modifies the
-# container's transient go.mod, not the upstream repo's.
+# build container. This `go get` only modifies the container's
+# transient go.mod, not the upstream repo's.
 go get github.com/AdamKorcz/go-118-fuzz-build/testing
 
 # Each target gets its own libFuzzer binary. Seed corpora are pulled

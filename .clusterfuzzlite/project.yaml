@@ -1,5 +1,4 @@
-# Project descriptor for go-seccure's continuous-fuzzing harness.
-# Uses the schema shared by OSS-Fuzz and ClusterFuzzLite.
+# ClusterFuzzLite project descriptor for go-seccure.
 
 homepage: "https://github.com/invenity-labs/go-seccure"
 language: go
