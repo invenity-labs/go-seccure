@@ -34,5 +34,4 @@ jobs:
         with:
           language: go
           sanitizer: ${{ matrix.sanitizer }}
-          build-integration-path: fuzz
           bad-build-check: false

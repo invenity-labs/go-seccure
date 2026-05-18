@@ -29,7 +29,6 @@ jobs:
         with:
           language: go
           sanitizer: address
-          build-integration-path: fuzz
       - name: Run Fuzzers
         id: run
         uses: google/clusterfuzzlite/actions/run_fuzzers@v1

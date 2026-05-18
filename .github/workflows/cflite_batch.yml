@@ -29,7 +29,6 @@ jobs:
         with:
           language: go
           sanitizer: ${{ matrix.sanitizer }}
-          build-integration-path: fuzz
       - name: Run Fuzzers (${{ matrix.sanitizer }})
         id: run
         uses: google/clusterfuzzlite/actions/run_fuzzers@v1
